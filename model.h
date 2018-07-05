@@ -88,6 +88,9 @@ private:
   type_choice type_c;
   aligned_choice aligned_c;
 
+  double seq_change_interval;
+  double op_interval;
+
   sequence w_sequence{r_w_seq_depth};
   sequence r_sequence{r_w_seq_depth};
 
@@ -123,6 +126,12 @@ private:
   std::string last_object;
   uint32_t last_offset;
   uint32_t last_len;
+  double last_op_time;
+
+  uint32_t op_interval_count;
+  double op_interval_cumulative;
+  uint32_t seq_interval_count;
+  double seq_interval_cumulative;
 
   sequence::learn_t r_learn;
   sequence::learn_t w_learn;

@@ -15,7 +15,7 @@ bool parse_line(const std::string& line, uint32_t& client_no, std::string& objec
 
   static time_t tt;
   static std::string prev_time;
-  if (line.substr(0,18) != prev_time) {
+  if (line.substr(0,19) != prev_time) {
     struct tm t = {0};
     t.tm_year = atoi(&line[0]) - 1900;
     t.tm_mon =  atoi(&line[5]) - 1;
@@ -24,10 +24,9 @@ bool parse_line(const std::string& line, uint32_t& client_no, std::string& objec
     t.tm_min =  atoi(&line[14]);
     t.tm_sec =  atoi(&line[17]);
     tt = mktime(&t);
-    prev_time = line.substr(0,18);
+    prev_time = line.substr(0,19);
   }
-  specifics.tv.tv_sec = tt;
-  specifics.tv.tv_usec = atoi(&line[20]);
+  specifics.tv = tt + double(atoi(&line[20])) / 1000000;
 
   size_t p0;
   p0 = line.find("<== client.");
@@ -41,6 +40,7 @@ bool parse_line(const std::string& line, uint32_t& client_no, std::string& objec
 
   client_str = line.substr(p1, p2 - p1);
   client_no = std::stoi(client_str);
+  specifics.client_no = client_no;
   //std::cout << client_no << std::endl;
 
   size_t p3;

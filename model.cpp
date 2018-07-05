@@ -19,6 +19,8 @@ void Learn_t::learn_object_op(Model_t &m, const op_io_t& op)
     last_type = last_offset + last_len == op.offset ? op_seq : op_rand;
     stage++;
   }
+  type = (last_offset + last_len == op.offset) ? op_seq : op_rand;
+
   if (stage >= 2) {
     if (last_client_no == op.client_no &&
 	last_dir == op.opcode &&
@@ -28,6 +30,9 @@ void Learn_t::learn_object_op(Model_t &m, const op_io_t& op)
     ) {
       seq_continues = true;
     }
+    last_offset = op.offset;
+    last_len = op.len;
+
     if (op.opcode == op_read) {
       r_learn.learn(m.r_sequence, seq_continues);
     } else {
@@ -48,11 +53,22 @@ void Learn_t::learn_object_op(Model_t &m, const op_io_t& op)
       m.aligned_c.c_unaligned++;
     }
 
+    if (seq_continues) {
+      op_interval_count++;
+      op_interval_cumulative += (op.tv - last_op_time);
+    } else {
+      seq_interval_count++;
+      seq_interval_cumulative += (op.tv - last_op_time);
+    }
+    m.op_interval = op_interval_cumulative / op_interval_count;
+    m.seq_change_interval = seq_interval_cumulative / seq_interval_count;
+
+    last_op_time = op.tv;
+
     if (seq_continues && stage > 2) {
       return;
     }
 
-    type = (last_offset + last_len == op.offset) ? op_seq : op_rand;
     learn(m, op.opcode, op.object_name, type);
 
     if (type == op_seq) {
@@ -69,6 +85,7 @@ void Learn_t::learn_object_op(Model_t &m, const op_io_t& op)
   last_object = op.object_name;
   last_offset = op.offset;
   last_len = op.len;
+  last_op_time = op.tv;
 }
 
 void Learn_t::learn(Model_t &m, op_dir dir, const std::string& object, op_type type)
@@ -181,6 +198,7 @@ void Model_t::r_w_print()
   }
   std::cout << " aligned=" << aligned_c.c_aligned << " unaligned=" << aligned_c.c_unaligned << std::endl;
 
+  std::cout << "op_interval=" << op_interval << " seq_interval=" << seq_change_interval << std::endl;
 }
 
 #if 0

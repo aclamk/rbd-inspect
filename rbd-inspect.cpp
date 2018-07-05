@@ -34,7 +34,7 @@ int main(int argc, char** argv)
     if ( !parse_line(line, client_no, object_name, specifics) )
 	continue;
     //std::cout << line.substr(0,26) << std::endl;
-    std::cout << std::fixed << std::setprecision(6) << specifics.tv.tv_sec+double(specifics.tv.tv_usec)/1000000. <<
+    std::cout << std::fixed << std::setprecision(6) << specifics.tv <<
 	" " << client_no << " " << specifics.object_name << " " << specifics.opcode << " " << specifics.offset << " " << specifics.len << "." << std::endl;
 
     Learns[client_no].learn_object_op(Models[client_no], specifics);
