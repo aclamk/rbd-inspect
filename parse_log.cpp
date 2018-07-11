@@ -103,5 +103,6 @@ bool parse_line(const std::string& line, uint32_t& client_no, std::string& objec
   len_str = operation.substr(p9);
   specifics.offset = std::stoi(offset_str);
   specifics.len = std::stoi(len_str);
+
   return true;
 }

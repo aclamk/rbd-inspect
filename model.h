@@ -10,6 +10,7 @@ struct choice
 
 struct aligned_choice
 {
+  uint32_t c_p2 = 0;
   uint32_t c_aligned = 0;
   uint32_t c_unaligned = 0;
 };
@@ -26,6 +27,11 @@ struct type_choice
   uint32_t c_rand = 0;
 };
 
+struct startpos_choice
+{
+  uint32_t c_from0 = 0;
+  uint32_t c_fromrand = 0;
+};
 struct write_object_choice
 {
   uint32_t c_history = 0;
@@ -61,12 +67,20 @@ struct sequence
       }
     }
   };
+
+  struct generate_t
+  {
+    size_t pos = 0;
+    bool generate(sequence& ch_seq);
+  };
 };
 
 
 class Model_t
 {
 public:
+  static constexpr size_t max_object_size = 1 << 22; //4194304
+
   void add();
 
   //void r_w_learn(op_dir d);
@@ -74,18 +88,23 @@ public:
 
   op_dir r_w_model();
   Model_t() {};
+  uint32_t get_length();
 private:
   static constexpr size_t r_w_seq_depth = 10;
   static constexpr size_t object_history_depth = 10;
 
   static constexpr size_t size_history_minval = 12;//4096;
   static constexpr size_t size_history_maxval = 22;//4194304;
-  static constexpr size_t size_history_depth = size_history_maxval - (size_history_minval - 1);
+  static constexpr size_t size_history_depth = size_history_maxval + 1 - (size_history_minval - 1);
+
+  static constexpr size_t normal_align = 1 << 12; //4096
+  static constexpr size_t small_align = 1 << 9; //512
 
   rw_choice rw_c;
   read_object_choice r_object_c;
   write_object_choice w_object_c;
   type_choice type_c;
+  startpos_choice startpos_c;
   aligned_choice aligned_c;
 
   double seq_change_interval;
@@ -100,6 +119,7 @@ private:
   uint32_t size_history[size_history_depth] = {0};
 
   friend class Learn_t;
+  friend class Generator_t;
 };
 
 
@@ -113,12 +133,25 @@ public:
   void next_r_w(Model_t &m, op_dir d);
   void next_object_write(Model_t &m, const std::string& object_name);
   void learn_object_op(Model_t &m, const op_io_t& op);
-  void learn(Model_t &m, op_dir dir, const std::string& object, op_type type);
+  void learn_object_history(Model_t &m, op_dir dir, const std::string& object);
+  void learn_end(Model_t &m);
+
+  void learn_size(Model_t& m, const op_io_t& op);
+  void learn_alignment(Model_t& m, const op_io_t& op);
+  void learn_sequence(Model_t& m, const op_io_t& op, bool seq_continues);
+  void learn_timings(Model_t& m, const op_io_t& op, bool seq_continues);
+
+  bool in_batch(const op_io_t& hold, const op_io_t& op);
+  bool process(Model_t &m, const op_io_t& op, bool seq_continues);
+  bool process_continue(Model_t &m, const op_io_t& op);
+  bool process_new(Model_t &m, const op_io_t& op);
 private:
   //Model_t& m;
 
   int stage = 0;
-  //op_io_t last_op;
+
+  op_io_t hold = {0};
+  bool hold_processed = false;
 
   uint32_t last_client_no;
   op_dir last_dir;
@@ -126,12 +159,12 @@ private:
   std::string last_object;
   uint32_t last_offset;
   uint32_t last_len;
-  double last_op_time;
+  double last_op_time = 0;
 
-  uint32_t op_interval_count;
-  double op_interval_cumulative;
-  uint32_t seq_interval_count;
-  double seq_interval_cumulative;
+  uint32_t op_interval_count = 0;
+  double op_interval_cumulative = 0;
+  uint32_t seq_interval_count = 0;
+  double seq_interval_cumulative = 0;
 
   sequence::learn_t r_learn;
   sequence::learn_t w_learn;
@@ -151,3 +184,20 @@ private:
   history last_reads{Model_t::object_history_depth};
 
 };
+
+class Generator_t
+{
+public:
+  Generator_t(const Model_t& m): m(m) {};
+  void get_op(op_io_t& op);
+  size_t get_length();
+private:
+  ssize_t rw_index = -1;
+  double tv = 0;
+  op_dir dir;
+  op_type type;
+  size_t curr_pos = 0;
+  std::string object_name;
+  const Model_t& m;
+};
+
