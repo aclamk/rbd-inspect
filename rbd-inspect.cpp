@@ -20,6 +20,7 @@ int main(int argc, char** argv)
   Model_t M;
   std::map<uint32_t, Model_t> Models;
   std::map<uint32_t, Learn_t> Learns;
+  std::map<uint32_t, Recorder_t> Recorders;
 
   std::ifstream rbd_log( argv[1] );
   if (!rbd_log.is_open()) {
@@ -42,9 +43,10 @@ int main(int argc, char** argv)
 	" " << specifics.client_no << " " << specifics.object_name << " " << specifics.opcode << " " << specifics.offset << " " << specifics.len << "." << std::endl;
 
     Learns[client_no].learn_object_op(Models[client_no], specifics);
+    Recorders[client_no].record(specifics);
     //Models[client_no].r_w_print();
     count++;
-    if (count > 90000) {
+    if (count > 0) {
     if (objects.count(specifics.object_name) == 0) {
       countx++;
     }
@@ -78,8 +80,13 @@ int main(int argc, char** argv)
       assert (specifics.len <= Model_t::max_object_size);
 
     }
-
   }
+
+  for (auto &r: Recorders) {
+    r.second.printall();
+  }
+
+  print_history();
   /*
   while (xxx-- > 0)
   {

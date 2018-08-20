@@ -1,4 +1,6 @@
 #include <vector>
+#include <map>
+#include <set>
 #include <inttypes.h>
 #include "parse_log.h"
 
@@ -45,6 +47,7 @@ struct read_object_choice
   uint32_t c_other = 0;
 };
 
+void print_history();
 
 struct sequence
 {
@@ -73,6 +76,66 @@ struct sequence
     size_t pos = 0;
     bool generate(sequence& ch_seq);
   };
+};
+
+class Player_t
+{
+public:
+  struct entry {
+    uint32_t msec;
+    uint32_t offset;
+    uint32_t len;
+    uint16_t obj_id;
+    uint16_t operation;
+  };
+  bool load(FILE *f);
+  bool pop_next(entry& e);
+private:
+  std::vector<Player_t::entry> recorded;
+  size_t object_count = 0;
+  size_t pos = 0;
+  friend class Playback_t;
+};
+
+class Playback_objects_t
+{
+public:
+  Playback_objects_t(const std::string& name_prefix): name_prefix(name_prefix) {};
+  std::tuple<std::string, bool> obtain_name();
+  void release_name(const std::string&);
+private:
+  std::set<std::string> unused_names;
+  size_t names_generated = 0;
+  std::string name_prefix;
+};
+
+class Playback_t
+{
+public:
+  Playback_t(const Player_t& player, Playback_objects_t& object_pool, uint64_t base_time):
+    player(player), object_pool(object_pool), base_time(base_time) {};
+  bool blktrace_get_next_time(uint64_t& time_at);
+  bool blktrace_get_commands(std::string& commands);
+private:
+  const Player_t& player;
+  Playback_objects_t& object_pool;
+  uint64_t base_time = 0;
+  size_t pos = 0;
+  std::vector<std::string> object_names;
+ // size_t open_objects = 0;
+};
+
+class Recorder_t
+{
+public:
+  void record(const op_io_t& specifics);
+
+  void printall();
+  bool save(FILE *f);
+private:
+  std::vector<Player_t::entry> recorded;
+  double start_time = 0;
+  std::map<std::string, uint32_t> objects;
 };
 
 
@@ -122,7 +185,14 @@ private:
   friend class Generator_t;
 };
 
-
+struct history
+{
+  history(size_t size): names(size) {}
+  std::vector<std::string> names;
+  ssize_t put(const std::string &obj_name);
+  bool has(const std::string &obj_name);
+  bool insert(const std::string &obj_name); //true when all slots already filled
+};
 
 class Learn_t
 {
@@ -170,15 +240,6 @@ private:
   sequence::learn_t w_learn;
 
   std::vector<std::string> last_history;
-
-  struct history
-  {
-    history(size_t size): names(size) {}
-    std::vector<std::string> names;
-    ssize_t put(const std::string &obj_name);
-    bool has(const std::string &obj_name);
-    bool insert(const std::string &obj_name); //true when all slots already filled
-  };
 
   history last_writes{Model_t::object_history_depth};
   history last_reads{Model_t::object_history_depth};

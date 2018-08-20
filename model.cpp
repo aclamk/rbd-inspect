@@ -12,6 +12,26 @@
 #include <assert.h>
 
 
+history read_objects{1000};
+history write_objects{1000};
+uint32_t read_history[1000] = {0};
+uint32_t write_history[1000] = {0};
+
+void print_history() {
+  std::cout << "Read history:" << std::endl;
+  for (auto &i: read_history) {
+    std::cout << i << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "Write history:" << std::endl;
+    for (auto &i: write_history) {
+      std::cout << i << " ";
+    }
+    std::cout << std::endl;
+
+}
+
 bool Learn_t::in_batch(const op_io_t& hold, const op_io_t& op)
 {
   assert(hold.client_no == op.client_no);
@@ -160,7 +180,7 @@ void Learn_t::learn_object_op(Model_t &m, const op_io_t& op)
       } else {
 	//current sequence ends
 	learn_sequence(m, hold, false);
-	last_type == op_unknown;
+	last_type = op_unknown;
 	hold = op;
 	hold_processed = false;
 	learn_timings(m, op, false);
@@ -180,6 +200,10 @@ void Learn_t::learn_object_history(Model_t &m, op_dir dir, const std::string& ob
 {
   ssize_t p;
   if (dir == op_read) {
+    p = read_objects.put(object);
+    if (p!=-1) read_history[p]++;
+    else
+      read_objects.insert(object);
     m.rw_c.c_read++;
     if (last_writes.has(object)) {
       m.r_object_c.c_write_history++;
@@ -196,6 +220,11 @@ void Learn_t::learn_object_history(Model_t &m, op_dir dir, const std::string& ob
       }
     }
   } else {
+    p = write_objects.put(object);
+    if (p != -1) write_history[p]++;
+    else
+      write_objects.insert(object);
+
     m.rw_c.c_write++;
     if (last_writes.has(object)) {
       m.w_object_c.c_history++;
@@ -222,7 +251,7 @@ void Learn_t::learn_end(Model_t &m) {
   learn_sequence(m, hold, false);
 }
 
-ssize_t Learn_t::history::put(const std::string& obj_name)
+ssize_t history::put(const std::string& obj_name)
 {
   for (size_t i = 0; i < names.size(); i++) {
     if (names[i] == obj_name) {
@@ -236,7 +265,7 @@ ssize_t Learn_t::history::put(const std::string& obj_name)
   return -1;
 }
 
-bool Learn_t::history::has(const std::string &obj_name)
+bool history::has(const std::string &obj_name)
 {
   for (size_t i = 0; i < names.size(); i++) {
     if (names[i] == obj_name) {
@@ -246,7 +275,7 @@ bool Learn_t::history::has(const std::string &obj_name)
   return false;
 }
 
-bool Learn_t::history::insert(const std::string &obj_name)
+bool history::insert(const std::string &obj_name)
 {
   bool is_full = names[names.size() - 1] != "";
   for (size_t i = names.size() - 1; i > 0; i--) {
@@ -465,4 +494,134 @@ size_t Generator_t::get_length()
     }
   }
   return size;
+}
+
+void Recorder_t::record(const op_io_t& s)
+{
+  Player_t::entry e;
+  if (start_time == 0)
+    start_time = s.tv;
+  uint32_t& obj_id = objects[s.object_name];
+  if (obj_id == 0)
+    obj_id = objects.size() - 1;
+  e.msec = (s.tv - start_time) * 1000;
+  e.operation = s.opcode;
+  e.obj_id = obj_id;
+  e.offset = s.offset;
+  e.len = s.len;
+  recorded.push_back(e);
+  assert(sizeof(e) == 16);
+}
+
+void Recorder_t::printall()
+{
+  for (auto &x: recorded)
+  {
+    std::cout << "time=" << x.msec << " obj=" << x.obj_id << " " << x.operation << " o=" << x.offset << " l=" << x.len << std::endl;
+  }
+}
+
+bool Recorder_t::save(FILE *f)
+{
+  uint32_t records_count = recorded.size();
+  uint32_t object_count = objects.size();
+  if (fwrite(&object_count, sizeof(object_count), 1, f) != 1)
+    return false;
+  if (fwrite(&records_count, sizeof(records_count), 1, f) != 1)
+    return false;
+  if (fwrite(recorded.data(), sizeof(Player_t::entry), recorded.size(), f) != recorded.size())
+    return false;
+  return true;
+}
+
+
+
+bool Player_t::load(FILE *f)
+{
+  uint32_t records_count;
+  uint32_t object_count;
+  if (fread(&object_count, sizeof(object_count), 1, f) != 1)
+    return false;
+  if (fread(&records_count, sizeof(records_count), 1, f) != 1)
+    return false;
+  recorded.resize(records_count);
+  if (fread(recorded.data(), sizeof(Player_t::entry), recorded.size(), f) != records_count)
+    return false;
+  this->object_count = object_count;
+  return true;
+}
+
+bool Player_t::pop_next(entry& e)
+{
+  if (pos >= recorded.size())
+    return false;
+  e = recorded[pos];
+  pos++;
+  return true;
+}
+
+std::tuple<std::string, bool> Playback_objects_t::obtain_name()
+{
+  std::string res;
+  bool n;
+  if (unused_names.size() > 0) {
+    auto it = unused_names.begin();
+    res = *it;
+    unused_names.erase(it);
+    n = false;
+  } else {
+    res = name_prefix + std::to_string(names_generated++);
+    n = true;
+  }
+  return std::make_tuple(res,n);
+}
+
+void Playback_objects_t::release_name(const std::string& name)
+{
+  assert(unused_names.count(name) == 0);
+  unused_names.insert(name);
+}
+
+bool Playback_t::blktrace_get_next_time(uint64_t& time_at)
+{
+  assert(player.recorded.size());
+  if (pos >= player.recorded.size())
+      return false;
+  time_at = player.recorded[pos].msec + base_time;
+  return true;
+}
+
+bool Playback_t::blktrace_get_commands(std::string& commands)
+{
+  commands = "";
+  if (pos >= player.recorded.size())
+    return false;
+  const Player_t::entry& e = player.recorded[pos];
+  if (e.obj_id >= object_names.size())
+  {
+    std::string name;
+    bool is_new;
+    std::tie(name, is_new) = object_pool.obtain_name();
+    object_names.push_back(name);
+    if (is_new == true)
+      commands += object_names[e.obj_id] + " add\n";
+    commands += object_names[e.obj_id] + " open\n";
+  }
+  std::string op_name;
+  if (e.operation == 1)
+    op_name = "read";
+  else if (e.operation == 2)
+    op_name = "write";
+  else
+    assert(false && "invalid operation");
+  commands += object_names[e.obj_id] + " " + op_name + " " +
+		     std::to_string(e.offset) + " " + std::to_string(e.len) + "\n";
+  pos++;
+  if (pos == player.recorded.size()) {
+    for(auto &x : object_names) {
+      commands += x + " close\n";
+      object_pool.release_name(x);
+    }
+  }
+  return true;
 }
