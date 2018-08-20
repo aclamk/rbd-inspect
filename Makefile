@@ -1,7 +1,9 @@
-all: rbd-inspect
+all: rbd-inspect rbd-blktrace rbd-extract
 
 clean:
-	rm -f rbd-inspect.o model.o parse_log.o rbd-inspect
+	rm -f rbd-inspect.o model.o parse_log.o \
+	rbd-inspect.o rbd-blktrace.o rbd-extract.o \
+	rbd-inspect rbd-blktrace rbd-extract
 
 
 rbd-inspect: parse_log.o model.o rbd-inspect.o
