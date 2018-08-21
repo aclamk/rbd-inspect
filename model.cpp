@@ -424,7 +424,7 @@ void Generator_t::get_op(op_io_t& op)
     if (rand() % (m.r_sequence.seq[rw_index].next + m.r_sequence.seq[rw_index].escape)
 	< m.r_sequence.seq[rw_index].next ) {
       rw_index ++;
-      if (rw_index >= m.r_w_seq_depth)
+      if (rw_index >= (ssize_t)m.r_w_seq_depth)
 	rw_index = m.r_w_seq_depth - 1;
     } else {
       rw_index = -1;
@@ -433,7 +433,7 @@ void Generator_t::get_op(op_io_t& op)
     if (rand() % (m.w_sequence.seq[rw_index].next + m.w_sequence.seq[rw_index].escape)
 	< m.w_sequence.seq[rw_index].next ) {
       rw_index ++;
-      if (rw_index >= m.r_w_seq_depth)
+      if (rw_index >= (ssize_t)m.r_w_seq_depth)
 	rw_index = m.r_w_seq_depth - 1;
     } else {
       rw_index = -1;
@@ -560,6 +560,15 @@ bool Player_t::pop_next(entry& e)
   return true;
 }
 
+uint32_t Player_t::get_length()
+{
+  uint32_t length = recorded[object_count - 1].msec - recorded[0].msec;
+  if (length < 1000)
+    length = 1000;
+  return length;
+}
+
+
 std::tuple<std::string, bool> Playback_objects_t::obtain_name()
 {
   std::string res;
@@ -580,6 +589,28 @@ void Playback_objects_t::release_name(const std::string& name)
 {
   assert(unused_names.count(name) == 0);
   unused_names.insert(name);
+}
+
+size_t Playback_objects_t::names_count()
+{
+  return names_generated - unused_names.size();
+}
+
+
+bool Playback_t::blktrace_open(std::string& commands)
+{
+  commands = "";
+  for (size_t i = 0; i < player.object_count; i++)
+  {
+    std::string name;
+    bool is_new;
+    std::tie(name, is_new) = object_pool.obtain_name();
+    object_names.push_back(name);
+    if (is_new == true)
+      commands += name + " add\n";
+    commands += name + " open\n";
+  }
+  return true;
 }
 
 bool Playback_t::blktrace_get_next_time(uint64_t& time_at)
@@ -625,3 +656,13 @@ bool Playback_t::blktrace_get_commands(std::string& commands)
   }
   return true;
 }
+
+bool Playback_t::blktrace_close(std::string& commands)
+{
+	for(auto &x : object_names) {
+		commands += x + " close\n";
+		object_pool.release_name(x);
+	}
+	return true;
+}
+

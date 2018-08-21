@@ -90,6 +90,8 @@ public:
   };
   bool load(FILE *f);
   bool pop_next(entry& e);
+  uint32_t get_length();
+  size_t get_object_count() { return object_count; }
 private:
   std::vector<Player_t::entry> recorded;
   size_t object_count = 0;
@@ -103,6 +105,7 @@ public:
   Playback_objects_t(const std::string& name_prefix): name_prefix(name_prefix) {};
   std::tuple<std::string, bool> obtain_name();
   void release_name(const std::string&);
+  size_t names_count();
 private:
   std::set<std::string> unused_names;
   size_t names_generated = 0;
@@ -114,8 +117,10 @@ class Playback_t
 public:
   Playback_t(const Player_t& player, Playback_objects_t& object_pool, uint64_t base_time):
     player(player), object_pool(object_pool), base_time(base_time) {};
+  bool blktrace_open(std::string& commands);
   bool blktrace_get_next_time(uint64_t& time_at);
   bool blktrace_get_commands(std::string& commands);
+  bool blktrace_close(std::string& commands);
 private:
   const Player_t& player;
   Playback_objects_t& object_pool;
