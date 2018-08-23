@@ -126,7 +126,11 @@ private:
   Playback_objects_t& object_pool;
   uint64_t base_time = 0;
   size_t pos = 0;
-  std::vector<std::string> object_names;
+  struct object_t {
+    std::string name;
+    bool opened;
+  };
+  std::vector<object_t> objects;
  // size_t open_objects = 0;
 };
 

@@ -227,48 +227,7 @@ int main(int argc, char** argv)
   if (!load_models(models))
 	  return 1;
 
-
-  generate_iolog(output_name, operation_count, object_count);
-  //P(l) = l/max_length;
-  //1/2      2n    2/7
-  //1        n     1/7
-  //1/4      4n    4/7
-
-#if 0
-  std::ofstream output(output_name.c_str(), std::ofstream::binary);
-  output << "fio version 2 iolog" << std::endl;
-
-  int64_t base_time = 0;
-  static constexpr size_t players_count = 50;
-  Playback_objects_t object_pool("rbd_data.____.");
-  while (active_players.size() < players_count)
-  {
-    std::shared_ptr<Playback_t> pb(new Playback_t(all_players[rand() % all_players.size()], object_pool, base_time));
-    uint64_t next_op;
-    pb->blktrace_get_next_time(next_op);
-    active_players.emplace(next_op, std::shared_ptr<Playback_t>(pb));
-  }
-
-  while (true)
-  {
-    auto first = active_players.begin();
-    std::string commands;
-    assert(first->second->blktrace_get_commands(commands));
-    output << commands;
-    uint64_t next_time;
-    if (first->second->blktrace_get_next_time(next_time)) {
-      active_players.emplace(next_time, first->second);
-      active_players.erase(first);
-    } else {
-      next_time = first->first;
-      std::shared_ptr<Playback_t> pb(new Playback_t(all_players[rand() % all_players.size()], object_pool, next_time));
-      uint64_t next_op;
-      pb->blktrace_get_next_time(next_op);
-      active_players.emplace(next_op, std::shared_ptr<Playback_t>(pb));
-      active_players.erase(first);
-    }
-
-  }
-#endif
+  if (!generate_iolog(output_name, operation_count, object_count))
+    return 1;
 
 }

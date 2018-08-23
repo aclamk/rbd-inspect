@@ -605,10 +605,9 @@ bool Playback_t::blktrace_open(std::string& commands)
     std::string name;
     bool is_new;
     std::tie(name, is_new) = object_pool.obtain_name();
-    object_names.push_back(name);
+    objects.emplace_back(object_t{name, false});
     if (is_new == true)
       commands += name + " add\n";
-    commands += name + " open\n";
   }
   return true;
 }
@@ -628,15 +627,10 @@ bool Playback_t::blktrace_get_commands(std::string& commands)
   if (pos >= player.recorded.size())
     return false;
   const Player_t::entry& e = player.recorded[pos];
-  if (e.obj_id >= object_names.size())
-  {
-    std::string name;
-    bool is_new;
-    std::tie(name, is_new) = object_pool.obtain_name();
-    object_names.push_back(name);
-    if (is_new == true)
-      commands += object_names[e.obj_id] + " add\n";
-    commands += object_names[e.obj_id] + " open\n";
+  assert(e.obj_id < objects.size());
+  if (!objects[e.obj_id].opened) {
+    objects[e.obj_id].opened = true;
+    commands += objects[e.obj_id].name + " open\n";
   }
   std::string op_name;
   if (e.operation == 1)
@@ -645,13 +639,13 @@ bool Playback_t::blktrace_get_commands(std::string& commands)
     op_name = "write";
   else
     assert(false && "invalid operation");
-  commands += object_names[e.obj_id] + " " + op_name + " " +
+  commands += objects[e.obj_id].name + " " + op_name + " " +
 		     std::to_string(e.offset) + " " + std::to_string(e.len) + "\n";
   pos++;
   if (pos == player.recorded.size()) {
-    for(auto &x : object_names) {
-      commands += x + " close\n";
-      object_pool.release_name(x);
+    for(auto &x : objects) {
+      commands += x.name + " close\n";
+      object_pool.release_name(x.name);
     }
   }
   return true;
@@ -659,9 +653,9 @@ bool Playback_t::blktrace_get_commands(std::string& commands)
 
 bool Playback_t::blktrace_close(std::string& commands)
 {
-	for(auto &x : object_names) {
-		commands += x + " close\n";
-		object_pool.release_name(x);
+	for(auto &x : objects) {
+		commands += x.name + " close\n";
+		object_pool.release_name(x.name);
 	}
 	return true;
 }
