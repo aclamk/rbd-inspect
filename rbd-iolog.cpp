@@ -66,7 +66,7 @@ int convert(std::istream& input, std::ostream& output)
 void print_help()
 {
   static const char help[] =
-      "Usage: rbd-extract [OPTION]...\n"
+      "Usage: rbd-iolog [OPTION]...\n"
       "Extract RBD operations from logs into fio's --read_iolog format.\n"
       "\n"
       " -i FILE         Read operations from rbd log FILE.\n"
