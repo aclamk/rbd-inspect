@@ -17,7 +17,7 @@
 
 void print_help() {
   static const char help[] =
-"Usage: rbd-iolog [OPTION]...\n"
+"Usage: gen-iolog [OPTION]...\n"
 "Generate sequence of operations to simulate RBD.\n"
 "Output is a iolog file that can be read by FIO's --read_iolog option.\n"
 "\n"
