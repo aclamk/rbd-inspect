@@ -1,13 +1,13 @@
 all: rbd-inspect gen-iolog rbd-extract
 
 clean:
-	rm -f rbd-inspect.o model.o parse_log.o \
-	rbd-inspect.o gen-iolog.o rbd-iolog.o \
-	rbd-inspect gen-iolog rbd-iolog
+	rm -f rbd-model.o model.o parse_log.o \
+	rbd-model.o gen-iolog.o rbd-iolog.o \
+	rbd-model gen-iolog rbd-iolog
 
 OPTS = -ggdb3 -Wall -O3 -fno-omit-frame-pointer
 
-rbd-inspect: parse_log.o model.o rbd-inspect.o
+rbd-model: parse_log.o model.o rbd-model.o
 	g++ $^ -o $@
 
 gen-iolog: parse_log.o model.o gen-iolog.o
@@ -16,7 +16,7 @@ gen-iolog: parse_log.o model.o gen-iolog.o
 rbd-iolog: parse_log.o model.o rbd-iolog.o
 	g++ $^ -o $@
 
-rbd-inspect.o: rbd-inspect.cpp Makefile
+rbd-model.o: rbd-model.cpp Makefile
 	g++ $(OPTS) -c $< -o $@
 
 gen-iolog.o: gen-iolog.cpp Makefile
