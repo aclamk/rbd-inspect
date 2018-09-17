@@ -24,6 +24,7 @@ int convert(std::istream& input, std::ostream& output)
   object_map_t object_lru;
   std::set<std::string> objects;
 
+  output << "fio version 2 iolog" << std::endl;
   while (getline(input, line))
   {
     uint32_t client_no;
