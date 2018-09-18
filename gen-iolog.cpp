@@ -21,10 +21,11 @@ void print_help() {
 "Generate sequence of operations to simulate RBD.\n"
 "Output is a iolog file that can be read by FIO's --read_iolog option.\n"
 "\n"
-" -m|--model FILE         Read rbd operation models from FILE.\n"
-" -p|--operations CNT     Generate CNT number of I/O operations\n"
+" -m|--model FILE         Read rbd operation models from FILE\n"
+" --ops|--operations CNT  Generate CNT number of I/O operations [default 1000000]\n"
+" -p|--prefix PREFIX      PREFIX to prepend to object names\n"
 " -o FILE                 Write output to FILE\n"
-" -b|--objects CNT        Amount of objects that are operated on.\n"
+" --obs|--objects CNT     Amount of objects that are operated on [default 1000]\n"
 " -h, --help              Help\n";
   std::cout << help << std::endl;
 }
@@ -86,8 +87,9 @@ bool generate_distribution(std::map<double, Player_t& >& distribution)
 }
 
 bool generate_iolog(const std::string& output_name,
-					size_t operation_count,
-					size_t max_object_count)
+                    std::string prefix,
+                    size_t operation_count,
+                    size_t max_object_count)
 {
   std::map<double, Player_t& > distribution;
 	std::multimap<int64_t, std::shared_ptr<Playback_t> > active_players;
@@ -109,7 +111,7 @@ bool generate_iolog(const std::string& output_name,
 
 	*output << "fio version 2 iolog" << std::endl;
 
-	Playback_objects_t object_pool("rbd_data.____.");
+	Playback_objects_t object_pool(prefix);
 
 	std::string commands;
 	Player_t *next_player = nullptr;
@@ -171,12 +173,13 @@ int main(int argc, char** argv)
   std::multimap<int64_t, std::shared_ptr<Playback_t> > active_players;
   char* endp;
   std::string models = "";
-  size_t object_count = 0;
-  size_t operation_count = 0;
+  size_t object_count = 1000;
+  size_t operation_count = 1000000;
   std::string output_name;
+  std::string prefix = "rbd_data.";
 
   argc--; argv++;
-  std::set<std::string> oneparam_args={"-m", "--model", "-b", "--objects", "-p", "--operations", "-o"};
+  std::set<std::string> oneparam_args={"-m", "--model", "--obs", "--objects", "--ops", "--operations", "-o", "-p", "--prefix"};
   while (argc >= 1)
   {
 	  std::string arg = *argv;
@@ -192,24 +195,27 @@ int main(int argc, char** argv)
 		  if (arg == "-m" || arg == "--model") {
 			  models = value;
 		  }
-		  if (arg == "-b" || arg == "--objects") {
+		  if (arg == "--obs" || arg == "--objects") {
 			  object_count = strtol(*argv, &endp, 0);
 			  if (*endp != '\0') {
 				  std::cerr << "Option " << arg << " cannot accept `" << value << "'" << std::endl;
 				  exit(-1);
 			  }
 		  }
-		  if (arg == "-p" || arg == "--operations") {
+		  if (arg == "--ops" || arg == "--operations") {
 			  operation_count = strtol(*argv, &endp, 0);
 			  if (*endp != '\0') {
 				  std::cerr << "Option " << arg << " cannot accept `" << value << "'" << std::endl;
 				  exit(-1);
 			  }
 		  }
+		  if (arg == "--prefix" || arg == "-p") {
+		    prefix = value;
+		  }
 		  if (arg == "-o") {
 			  output_name = value;
 		  }
-	      argc--; argv++;
+		  argc--; argv++;
 		  continue;
 	  }
 	  if (arg == "-h" || arg == "--help") {
@@ -230,7 +236,7 @@ int main(int argc, char** argv)
   if (!load_models(models))
 	  return 1;
 
-  if (!generate_iolog(output_name, operation_count, object_count))
+  if (!generate_iolog(output_name, prefix, operation_count, object_count))
     return 1;
 
 }
