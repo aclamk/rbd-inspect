@@ -140,7 +140,7 @@ public:
   void record(const op_io_t& specifics);
 
   void printall();
-  bool save(FILE *f);
+  bool save(std::ostream& output);
 private:
   std::vector<Player_t::entry> recorded;
   double start_time = 0;

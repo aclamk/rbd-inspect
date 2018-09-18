@@ -521,20 +521,22 @@ void Recorder_t::printall()
   }
 }
 
-bool Recorder_t::save(FILE *f)
+bool Recorder_t::save(std::ostream& output)
 {
   uint32_t records_count = recorded.size();
   uint32_t object_count = objects.size();
-  if (fwrite(&object_count, sizeof(object_count), 1, f) != 1)
+
+  output.write((const char*)&object_count, sizeof(object_count));
+  if (!output.good())
     return false;
-  if (fwrite(&records_count, sizeof(records_count), 1, f) != 1)
+  output.write((const char*)&records_count, sizeof(records_count));
+  if (!output.good())
     return false;
-  if (fwrite(recorded.data(), sizeof(Player_t::entry), recorded.size(), f) != recorded.size())
+  output.write((const char*)recorded.data(), sizeof(Player_t::entry) * recorded.size());
+  if (!output.good())
     return false;
   return true;
 }
-
-
 
 bool Player_t::load(FILE *f)
 {
