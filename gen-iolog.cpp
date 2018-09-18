@@ -119,7 +119,10 @@ bool generate_iolog(const std::string& output_name,
 	{
     if (!next_player) {
       double v = (double)rand() / RAND_MAX;
-      next_player = &(distribution.lower_bound(v)->second);
+      auto it = distribution.lower_bound(v);
+      if (it == distribution.end())
+        it--;
+      next_player = &(it->second);
     }
 
     if (object_pool.names_count() + next_player->get_object_count() <= max_object_count) {
