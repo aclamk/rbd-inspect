@@ -36,7 +36,7 @@ bool load_models(const std::string& models)
 {
 	bool result = true;
 	FILE* f;
-	f = fopen("test-record", "r");
+	f = fopen(models.c_str(), "r");
 	while (true)
 	{
 		int ch = fgetc(f);
